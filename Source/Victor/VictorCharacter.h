@@ -5,9 +5,16 @@
 #include "CoreMinimal.h"
 #include "PaperCharacter.h"
 #include "Components/BoxComponent.h"
+#include "Weapons/WeaponBase.h"
+#include "Components/AudioComponent.h"
 #include "VictorCharacter.generated.h"
 
-class UTextRenderComponent;
+UENUM(BlueprintType)
+enum class ETeam:uint8
+{
+	ET_Player UMETA(DisplayName = "Player"),
+    ET_Guards UMETA(DisplayName = "Guards")
+};
 
 /**
  * This class is the default character for Victor, and it is responsible for all
@@ -29,8 +36,7 @@ class AVictorCharacter : public APaperCharacter
 	/** Camera boom positioning the camera beside the character */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Camera, meta = (AllowPrivateAccess = "true"))
 	class USpringArmComponent* CameraBoom;
-
-	UTextRenderComponent* TextComponent;
+	
 	virtual void Tick(float DeltaSeconds) override;
 protected:
 	// The animation to play while running around
@@ -43,6 +49,14 @@ protected:
 
 	UPROPERTY(BlueprintReadWrite,EditDefaultsOnly)
 	UBoxComponent* WallGrabBox;
+
+	FTimerHandle StartPossesingTimerHandle;
+
+	FTimerHandle FinishAttackAnimTimerHandle;
+
+	FTimerHandle MeleeDealDamageTimerHandle;
+
+	FTimerHandle EndMeleeAttackAnimTimerHandle;
 
 public:
 	
@@ -76,8 +90,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category=Posses,SaveGame)
 	float PossesTime = 1.f;
 
-	//UPROPERTY(EditAnywhere, BlueprintReadWrite,Category=Weapon,SaveGame)
-	//AWeaponBase* Weapon;	
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category=Weapon,SaveGame)
+	AWeaponBase* Weapon;	
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category=WeaponAnims,SaveGame)
 	bool bPlayingMeleeAttackAnim = false;
@@ -93,6 +107,9 @@ public:
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Climbing,SaveGame)
 	bool bIsHoldingWall = false;
+
+	UFUNCTION(BlueprintCallable)
+	virtual bool SetWeapon(TSubclassOf<AWeaponBase>WeaponClass);
 
 	/** Called to choose the correct animation to play based on the character's movement state */
 	void UpdateAnimation();
@@ -111,6 +128,73 @@ public:
 	// APawn interface
 	virtual void SetupPlayerInputComponent(class UInputComponent* InputComponent) override;
 	// End of APawn interface
+
+
+	UFUNCTION(BlueprintPure)
+	virtual bool CanBePossesed(){return true;}
+
+	UFUNCTION(BLueprintPure)
+	virtual bool CanBeSeen();
+	
+	void Interact();
+
+	UFUNCTION(BlueprintCallable)
+	virtual void Die();
+
+	UFUNCTION(BlueprintCallable)
+	virtual void SetHiddenInTheShadow(bool Hidden);
+	
+	UFUNCTION(BlueprintPure)
+	virtual UPaperFlipbook* GetDesiredAnimation();
+
+	UFUNCTION(BlueprintPure)
+	FVector GetWeaponSocketLocation()const;
+
+	UFUNCTION(BlueprintPure)
+	FName GetWeaponAttachmentSocketName(EWeaponAnimType animType)const;
+
+	UFUNCTION(BlueprintPure)
+    FRotator GetWeaponSocketRotation()const;
+
+	UFUNCTION(BlueprintCallable,BlueprintNativeEvent,Category= SaveSystem)
+	void LoadLastSave();
+	
+	void LoadLastSave_Implementation(){}
+	
+	
+	virtual void Attack();
+
+	virtual void EndMeleeAttackAnim();
+	
+	virtual void FinishMeleeAttack();
+
+	virtual void BeginDestroy() override;
+	
+	
+	void Possess();
+
+	void StartPossess();
+
+	void StopPossess();
+	
+
+	virtual void OnUnPosses();
+
+	virtual void OnPosses(AVictorCharacter *originalBody);
+	
+
+	virtual void BeginPlay() override;
+
+	virtual float TakeDamage(float DamageAmount, FDamageEvent const& DamageEvent, AController* EventInstigator, AActor* DamageCauser) override;
+
+	virtual bool CanJumpInternal_Implementation() const override;
+
+	UFUNCTION()
+    void OnWallGrabBoxBeginOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp,
+                           int32 OtherBodyIndex, bool bFromSweep, const FHitResult& SweepResult);
+
+	UFUNCTION()
+    void OnWallGrabBoxEndOverlap(UPrimitiveComponent* OverlappedComp, AActor* OtherActor, UPrimitiveComponent* OtherComp, int32 OtherBodyIndex);
 
 public:
 	AVictorCharacter();
